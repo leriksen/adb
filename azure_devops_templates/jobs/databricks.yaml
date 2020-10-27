@@ -1,0 +1,98 @@
+parameters:
+  filter: adb-pat-name
+  environment: ''
+  resource_group: ''
+  json: ''
+  name: ''
+  type: ''
+  save_cluster: false
+  save_nbaa_cluster: false
+  save_large_cluster: false
+  create_scope: false
+  write_keys: false
+#  depends_on: terraform
+  depends_on: ''
+  rg_base: ''
+
+  adb_host: https://australiaeast.azuredatabricks.net
+
+jobs:
+- deployment: ${{ parameters.type }}_databricks_cluster
+  displayName: ADB ${{ parameters.type }} ${{ parameters.environment }} Jobs
+  dependsOn: ${{ parameters.depends_on }}
+  environment: ${{ parameters.environment }}
+  variables:
+  - group: ${{ parameters.resource_group }}
+  pool:
+    vmImage: ubuntu-latest
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - checkout: self
+        - task: AzureKeyVault@1
+          name: keyvault
+          inputs:
+            azureSubscription: ${{ parameters.resource_group }}
+            keyVaultName: $(ADB_KV_NAME)
+            secretsFilter: ${{ parameters.filter }}
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '3.7'
+            addToPath: true
+        - task: Bash@3
+          displayName: install toolchain
+          inputs:
+            targetType: filePath
+            filePath: provisioning/adb_install_toolchain.sh
+        - task: AzureCLI@2
+          displayName: create cluster
+          env:
+            ADB_TOKEN: $(adb-pat-name)
+            SAVE_CLUSTER: ${{ parameters.save_cluster }}
+            SAVE_NBAA_CLUSTER: ${{ parameters.save_nbaa_cluster }}
+            SAVE_LARGE_CLUSTER: ${{ parameters.save_large_cluster }}
+          inputs:
+            azureSubscription: ${{ parameters.resource_group }}
+            scriptType: bash
+            scriptLocation: scriptPath
+            scriptPath: provisioning/adb_build_cluster.sh
+            arguments: -j ${{ parameters.json }} -e ${{ parameters.environment }} -h ${{ parameters.adb_host }} -n ${{ parameters.name }}
+        - task: Bash@3
+          displayName: create ADB KV scope
+          env:
+            ADB_TOKEN: $(adb-pat-name)
+            TYPE: ${{ parameters.type }}
+          inputs:
+            targetType: filePath
+            filePath: provisioning/adb_create_scope.sh
+            # hardcoded, as there doesnt need to be strong linkage to real KV name
+            arguments: -s 'edp-go-kv' -h ${{ parameters.adb_host }}
+        - task: AzureKeyVault@1
+          displayName: cluster secret
+          inputs:
+            azureSubscription: ${{ parameters.resource_group }}
+            keyVaultName: $(ADB_KV_NAME)
+            secretsFilter: cluster-id
+        - task: Bash@3
+          displayName: deploy adb libraries
+          env:
+            ADB_TOKEN: $(adb-pat-name)
+            CLUSTER_ID: $(cluster-id)
+          inputs:
+            targetType: filePath
+            filePath: provisioning/adb_create_libraries.sh
+            arguments: -l ${{ parameters.adb_libraries }} -h ${{ parameters.adb_host }}
+        - task: AzureCLI@2
+          displayName: create keys
+          env:
+            ADB_TOKEN: $(adb-pat-name)
+            ENVIRONMENT: ${{ parameters.environment }}
+            WRITE_KEYS: ${{ parameters.write_keys }}
+            HOST: ${{ parameters.adb_host }}
+            ADB_SCOPE_NAME: 'edp-go-kv' # hardcoded, as there doesnt need to be strong linkage to real KV name
+          inputs:
+            azureSubscription: ${{ parameters.resource_group }}
+            scriptType: bash
+            scriptLocation: scriptPath
+            scriptPath: provisioning/adb_create_keys.sh

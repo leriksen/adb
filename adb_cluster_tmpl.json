@@ -1,0 +1,37 @@
+{
+    "cluster_name": "CLUSTERNAME",
+    "autotermination_minutes": 60,
+    "enable_elastic_disk": true,
+    "spark_version": "6.6.x-scala2.11",
+    "autoscale" : {
+      "min_workers": 2,
+      "max_workers": 30
+    },
+    "spark_conf": {
+      "spark.databricks.delta.preview.enabled": "true",
+      "spark.sql.parquet.writeLegacyFormat": "true"
+    },
+    "node_type_id": "Standard_D3_v2",
+    "driver_node_type_id": "Standard_D3_v2",
+    "spark_env_vars": {
+      "PYSPARK_PYTHON": "/databricks/python3/bin/python3"
+    },
+    "custom_tags": [
+      {
+        "key": "TechnicalOwner",
+        "value": "The Man"
+      },
+      {
+        "key": "BusinessOwner",
+        "value": "The Boss"
+      },
+      {
+        "key": "CostCentre",
+        "value": "O-MY-MONEY"
+      },
+      {
+        "key": "Purpose",
+        "value": "Party"
+      }
+    ]
+  }

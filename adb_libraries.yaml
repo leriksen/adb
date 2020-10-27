@@ -1,0 +1,2 @@
+variables:
+  adb_libraries: azure-storage-blob==2.1.0,lxml,xlrd,xlwt,pathlib
